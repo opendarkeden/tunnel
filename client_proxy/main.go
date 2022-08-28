@@ -75,15 +75,15 @@ func main() {
 		return make([]byte, 32768)
 	}
 	myApp := cli.NewApp()
-	myApp.Name = "p2pclient"
-	myApp.Usage = "client(with kcptun)"
+	myApp.Name = "client_proxy"
+	myApp.Usage = "client_proxy (with kcptun)"
 	myApp.Version = VERSION
 	myApp.Flags = []cli.Flag{
-		cli.StringFlag{
-			Name:  "targettcp, t",
-			Value: "127.0.0.1:22",
-			Usage: "target server address",
-		},
+		// cli.StringFlag{
+		// 	Name:  "targettcp, t",
+		// 	Value: "127.0.0.1:22",
+		// 	Usage: "target server address",
+		// },
 		cli.StringFlag{
 			Name:  "listentcp,l",
 			Value: ":2022",
@@ -223,7 +223,7 @@ func main() {
 		config := Config{}
 		config.ListenTcp = c.String("listentcp")
 		config.RemoteUdp = c.String("remoteudp")
-		config.TargetTcp = c.String("targettcp")
+		// config.TargetTcp = c.String("targettcp")
 		config.Key		= c.String("key")
 		config.Passwd = c.String("passwd")
 		config.Crypt = c.String("crypt")
@@ -288,7 +288,7 @@ func p2pHandle(config *Config, peerAddr string, chTCPConn chan *net.TCPConn){
 	smuxSession, err := newSmuxSession(udpconn, config, peerAddr)
 	checkError(err)
 
-	go handleTargetTcp(config.TargetTcp, smuxSession, config.Quiet)
+	// go handleTargetTcp(config.TargetTcp, smuxSession, config.Quiet)
 	tickerCheck := time.NewTicker(10*time.Second)
 	defer tickerCheck.Stop()
 	for {
@@ -492,45 +492,45 @@ func newKcpConn(udpconn net.PacketConn, config *Config, remoteAddr string) (*kcp
 	return kcpconn, err
 }
 
-func handleTargetTcp(addr string, session *smux.Session, quiet bool) {
-	for {
-		p1, err := session.AcceptStream()
-		if err != nil {
-			log.Println(err)
-			return
-		}
-		p2, err := net.DialTimeout("tcp", addr, 5*time.Second)
-		if err != nil {
-			p1.Close()
-			log.Println(err)
-			continue
-		}
-		go func() {
-			if !quiet {
-				log.Println("tcp client opened")
-				defer log.Println("tcp client closed")
-			}
-			defer p1.Close()
-			defer p2.Close()
+// func handleTargetTcp(addr string, session *smux.Session, quiet bool) {
+// 	for {
+// 		p1, err := session.AcceptStream()
+// 		if err != nil {
+// 			log.Println(err)
+// 			return
+// 		}
+// 		p2, err := net.DialTimeout("tcp", addr, 5*time.Second)
+// 		if err != nil {
+// 			p1.Close()
+// 			log.Println(err)
+// 			continue
+// 		}
+// 		go func() {
+// 			if !quiet {
+// 				log.Println("tcp client opened")
+// 				defer log.Println("tcp client closed")
+// 			}
+// 			defer p1.Close()
+// 			defer p2.Close()
 
-			streamCopy := func(dst io.Writer, src io.ReadCloser) chan struct{} {
-				die := make(chan struct{})
-				go func() {
-					buf := xmitBuf.Get().([]byte)
-					io.CopyBuffer(dst, src, buf)
-					xmitBuf.Put(buf)
-					close(die)
-				}()
-				return die
-			}
+// 			streamCopy := func(dst io.Writer, src io.ReadCloser) chan struct{} {
+// 				die := make(chan struct{})
+// 				go func() {
+// 					buf := xmitBuf.Get().([]byte)
+// 					io.CopyBuffer(dst, src, buf)
+// 					xmitBuf.Put(buf)
+// 					close(die)
+// 				}()
+// 				return die
+// 			}
 
-			select {
-			case <-streamCopy(p1, p2):
-			case <-streamCopy(p2, p1):
-			}
-		}()
-	}
-}
+// 			select {
+// 			case <-streamCopy(p1, p2):
+// 			case <-streamCopy(p2, p1):
+// 			}
+// 		}()
+// 	}
+// }
 
 func newP2PConn(udpConn net.PacketConn, raddr string, block kcp.BlockCrypt, dataShards, parityShards int) (*kcp.UDPSession, error){
 	udpaddr, err := net.ResolveUDPAddr("udp", raddr)

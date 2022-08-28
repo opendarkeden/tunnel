@@ -39,8 +39,8 @@ func main() {
 		log.SetFlags(log.LstdFlags | log.Lshortfile)
 	}
 	myApp := cli.NewApp()
-	myApp.Name = "p2pserver"
-	myApp.Usage = "server(with kcptun)"
+	myApp.Name = "nameserver"
+	myApp.Usage = "nameserver (with kcptun)"
 	myApp.Version = VERSION
 	myApp.Flags = []cli.Flag{
 		cli.StringFlag{
