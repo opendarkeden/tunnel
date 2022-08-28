@@ -4,8 +4,7 @@ import (
 	"bufio"
 	"crypto/sha1"
 	"encoding/json"
-	"github.com/hikaricai/p2p_tun/kcp-go"
-	"github.com/xtaci/kcptun/generic"
+	"github.com/xtaci/kcp-go"
 	"io"
 	"log"
 	"math/rand"
@@ -17,6 +16,7 @@ import (
 	"golang.org/x/crypto/pbkdf2"
 	"github.com/urfave/cli"
 	"github.com/xtaci/smux"
+	"github.com/pkg/errors"
 )
 
 var (
@@ -45,7 +45,7 @@ func handleLocalTcp(sess *smux.Session, p1 io.ReadWriteCloser, quiet bool) {
 		die := make(chan struct{})
 		go func() {
 			buf := xmitBuf.Get().([]byte)
-			generic.CopyBuffer(dst, src, buf)
+			io.CopyBuffer(dst, src, buf)
 			xmitBuf.Put(buf)
 			close(die)
 		}()
@@ -467,7 +467,8 @@ func newKcpConn(udpconn net.PacketConn, config *Config, remoteAddr string) (*kcp
 		block, _ = kcp.NewAESBlockCrypt(pass)
 	}
 
-	kcpconn, err := kcp.NewP2pConn(udpconn, remoteAddr, block, config.DataShard, config.ParityShard)
+	// kcpconn, err := kcp.NewP2pConn(udpconn, remoteAddr, block, config.DataShard, config.ParityShard)
+	kcpconn, err := newP2PConn(udpconn, remoteAddr, block, config.DataShard, config.ParityShard)
 	if err != nil {
 		return nil, err
 	}
@@ -516,7 +517,7 @@ func handleTargetTcp(addr string, session *smux.Session, quiet bool) {
 				die := make(chan struct{})
 				go func() {
 					buf := xmitBuf.Get().([]byte)
-					generic.CopyBuffer(dst, src, buf)
+					io.CopyBuffer(dst, src, buf)
 					xmitBuf.Put(buf)
 					close(die)
 				}()
@@ -531,3 +532,11 @@ func handleTargetTcp(addr string, session *smux.Session, quiet bool) {
 	}
 }
 
+func newP2PConn(udpConn net.PacketConn, raddr string, block kcp.BlockCrypt, dataShards, parityShards int) (*kcp.UDPSession, error){
+	udpaddr, err := net.ResolveUDPAddr("udp", raddr)
+	if err != nil {
+		return nil, errors.Wrap(err, "net.ResolveUDPAddr")
+	}
+
+	return kcp.NewConn3(0x1, udpaddr, block, dataShards, parityShards, udpConn)
+}
